@@ -10,14 +10,17 @@ struct _vchar_drv {
 } vchar_drv;
 
 static int __init driver_init(void) {
-  int ret = 0;
 
+  /* cap phat device number */
+  int ret = 0;
   vchar_drv.dev_num = 0;
   ret = alloc_chrdev_region(&vchar_drv.dev_num, 0, 1, "vchar_driver");
   if (ret < 0) {
     printk("failed to register device number dynamically\n");
     goto failed_register_devnum;
   }
+  printk("allocated device number (%d, %d)\n", MAJOR(vchar_drv.dev_num), MINOR(vchar_drv.dev_num))
+
   printk("Init success\n");
   return 0;
 
