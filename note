@@ -1,0 +1,16 @@
+/* bien dịch mã nguồn, tạo file kernel module */
+make
+
+/* xem thông tin về module */
+sudo modinfor <name>.ko
+
+
+/* lắp kernel module */
+sudo insmod <name>.ko
+
+/* tháo kernel module */
+sudo rmmod <name>.ko
+
+/* show */
+lsmod | grep <name>
+dmesg
