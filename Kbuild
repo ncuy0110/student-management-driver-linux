@@ -1,3 +1,3 @@
 EXTRA_CFLAGS = -Wall
 
-obj-m        = a.o
+obj-m        = my_driver.o

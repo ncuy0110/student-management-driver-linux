@@ -2,7 +2,7 @@
 make
 
 /* xem thông tin về module */
-sudo modinfor <name>.ko
+modinfo <name>.ko
 
 
 /* lắp kernel module */
