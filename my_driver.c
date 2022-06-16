@@ -11,7 +11,7 @@ struct _vchar_drv {
   struct device *dev;
 } vchar_drv;
 
-static int __init driver_init(void) {
+static int __init vchar_driver_init(void) {
 
   /* cap phat device number */
   int ret = 0;
@@ -34,24 +34,30 @@ static int __init driver_init(void) {
   vchar_drv.dev = device_create(vchar_drv.dev_class, NULL, vchar_drv.dev_num, NULL, "vchar_dev");
   if (IS_ERR(vchar_drv.dev)) {
     printk("failed to create a device\n");
+    goto failed_create_device;
   }
 
   printk("Init success\n");
   return 0;
 
-failed_register_devnum:
-  return ret;
+failed_create_device:
+  class_destroy(vchar_drv.dev_class);
 failed_create_class:
   unregister_chrdev_region(vchar_drv.dev_num, 1);
+failed_register_devnum:
+  return ret;
 }
 
-static void __exit driver_exit(void) {
+static void __exit vchar_driver_exit(void) {
+  device_destroy(vchar_drv.dev_class, vchar_drv.dev_num);
+  class_destroy(vchar_drv.dev_class);
+
   unregister_chrdev_region(vchar_drv.dev_num, 1);
   printk("Exit success\n");
 }
 
-module_init(driver_init);
-module_exit(driver_exit);
+module_init(vchar_driver_init);
+module_exit(vchar_driver_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);

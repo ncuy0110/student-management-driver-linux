@@ -14,3 +14,10 @@ sudo rmmod <name>.ko
 /* show */
 lsmod | grep <name>
 dmesg
+
+# kiem tra class device file
+ls -l /sys/class/class_vchar_dev/
+ls -la /dev/vchar_dev 
+
+ls -l /sys/class/class_vchar_dev/vchar_dev
+cat /sys/class/class_vchar_dev/vchar_dev/uevent 
