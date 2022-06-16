@@ -7,6 +7,8 @@
 
 struct _vchar_drv {
   dev_t dev_num;
+  struct class *dev_class;
+  struct device *dev;
 } vchar_drv;
 
 static int __init driver_init(void) {
@@ -19,13 +21,28 @@ static int __init driver_init(void) {
     printk("failed to register device number dynamically\n");
     goto failed_register_devnum;
   }
-  printk("allocated device number (%d, %d)\n", MAJOR(vchar_drv.dev_num), MINOR(vchar_drv.dev_num))
+
+  printk("allocated device number (%d, %d)\n", MAJOR(vchar_drv.dev_num), MINOR(vchar_drv.dev_num));
+
+  // tao file device
+  vchar_drv.dev_class = class_create(THIS_MODULE, "class_vchar_dev");
+  if (vchar_drv.dev_class == NULL) {
+    printk("failed to create a device class\n");
+    goto failed_create_class;
+  }
+
+  vchar_drv.dev = device_create(vchar_drv.dev_class, NULL, vchar_drv.dev_num, NULL, "vchar_dev");
+  if (IS_ERR(vchar_drv.dev)) {
+    printk("failed to create a device\n");
+  }
 
   printk("Init success\n");
   return 0;
 
 failed_register_devnum:
   return ret;
+failed_create_class:
+  unregister_chrdev_region(vchar_drv.dev_num, 1);
 }
 
 static void __exit driver_exit(void) {
