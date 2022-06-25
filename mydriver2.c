@@ -5,6 +5,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
+#include "md5.h"
 
 #include "vchar_device.h"
 
@@ -17,6 +18,11 @@ typedef struct vchar_dev {
   unsigned char * status_regs;
   unsigned char * data_regs;
 } vchar_dev_t;
+
+struct user_vchar {
+  char * username;
+  uint8_t * password;
+} admin;
 
 struct _vchar_drv {
   dev_t dev_num;
@@ -37,6 +43,10 @@ static int vchar_driver_release(struct inode *inode, struct file *filp) {
   printk("Handle close event\n");
   return 0;
 }
+
+/* static ssize_t vchar_driver_login(char *username, char *password) { */
+
+/* } */
 
 static struct file_operations fops = {
   .owner    = THIS_MODULE,
@@ -65,9 +75,14 @@ void vchar_hw_exit(vchar_dev_t *hw) {
 
 static int __init vchar_driver_init(void) {
 
+
   /* cap phat device number */
   int ret = 0;
   vchar_drv.dev_num = 0;
+
+  admin.username = "ncuy0110";
+  admin.password = md5String("helloWorld");
+
   ret = alloc_chrdev_region(&vchar_drv.dev_num, 0, 1, "vchar_driver");
   if (ret < 0) {
     printk("failed to register device number dynamically\n");
