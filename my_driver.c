@@ -1,15 +1,29 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <slab.h>
+#include <linux/cdev.h>
+#include <linux/uaccess.h>
+
+#include "vchar_driver.h"
 
 #define DRIVER_AUTHOR "NGUYEN CHON UY <nguyenchonuy2001@gmail.com>"
 #define DRIVER_DESC "A sample loadable kernel module"
+
+
+typedef struct vchar_dev {
+  unsigned char * control_regs;
+  unsigned char * status_regs;
+  unsigned char * data_regs;
+} vchar_dev_t;
 
 struct _vchar_drv {
   dev_t dev_num;
   struct class *dev_class;
   struct device *dev;
+  vchar_dev_t * vchar_hw;
 } vchar_drv;
+
 
 static int __init vchar_driver_init(void) {
 
