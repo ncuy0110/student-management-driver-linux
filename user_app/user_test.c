@@ -1,102 +1,179 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdbool.h>
+
+#include "md5.h"
 
 #define BUFFER_SIZE 1024
 #define DEVICE_NODE "/dev/vchar_dev"
 
-
-/* ham kiem tra entry point release cua vchar driver */
-void close_chardev(int fd) {
-    close(fd);
-}
-
-/* ham kiem tra entry point open cua vchar driver */
 int open_chardev() {
-    int fd = open(DEVICE_NODE, O_RDWR);
-    if(fd < 0) {
-        printf("Can not open the device file\n");
-        exit(1);
+  int fd = open(DEVICE_NODE, O_RDWR);
+  if(fd < 0) {
+    printf("Can not open the device file\n");
+    exit(1);
+  }
+  return fd;
+}
+
+char * normalize_characters(char *user_buf) {
+  int fd = open_chardev();
+  int ret = read(fd, user_buf, strlen(user_buf) + 1);
+  user_buf[ret] = '\0';
+  close(fd);
+  return user_buf;
+}
+
+uint8_t hex_to_uint8_t(char a, char b) {
+  uint8_t rs = 0;
+  if (a>='0' && a <= '9') {
+    rs = rs + (a-48)*16;
+  } else {
+    rs = rs + (a-87)*16;
+  }
+
+  if (b>='0' && b<= '9') {
+    rs = rs + (b-48);
+  } else
+    rs = rs + (b-87);
+
+  return rs;
+}
+
+void print_hash(uint8_t *p){
+  for(unsigned int i = 0; i < 16; ++i){
+    printf("%02x", p[i]);
+  }
+  printf("\n");
+}
+
+bool login(){
+  printf("Enter username: ");
+  char username[256];
+  scanf(" %[^\n]s", username);
+  char password[256];
+  printf("Enter password: ");
+  scanf(" %[^\n]s", password);
+
+  uint8_t * encrypted_pw = md5String(password);
+  FILE* fp;
+  fp = fopen("admin.txt", "r");
+  char buff[256];
+  fgets(buff, 256, fp);
+
+  char * un = buff;
+
+  uint8_t i;
+  for (i = 0; i<strlen(un)-1; i++){
+    if (un[i] != username[i])
+      return false;
+  }
+
+
+  fgets(buff, 256, fp);
+  printf("%s\n", buff);
+  for (i = 0; i<16; i++) {
+    if (encrypted_pw[i] != hex_to_uint8_t(buff[i*2], buff[i*2+1])) {
+      return false;
     }
-    return fd;
+  }
+
+  return true;
 }
 
-void read_data_chardev() {
-  int ret = 0;
-  char user_buf[BUFFER_SIZE];
+struct Student {
+  int id;
+  char * name;
+};
 
-  int fd = open_chardev();
-  ret = read(fd, user_buf, BUFFER_SIZE);
-  close_chardev(fd);
-
-  if (ret < 0)
-    printf("Could not read a message from %s\n", DEVICE_NODE);
-  else
-    printf("Read a message from %s: %s\n", DEVICE_NODE, user_buf);
+const char *toString(struct Student st)
+{
+  char *rs = (char *)malloc(100 * sizeof(char));
+  sprintf(rs, "%d-%s\n", st.id, st.name);
+  return rs;
 }
 
-void write_data_chardev() {
-  int ret = 0;
-  char user_buf[BUFFER_SIZE];
+struct Student students[100];
+int count = 0;
 
-  printf("Enter your message: ");
-  scanf(" %[^\n]s", user_buf);
+void addStudent(){
+  printf("Enter ID: ");
+  int id;
+  scanf("%d", &id);
+  students[count].id = id;
 
-  int fd = open_chardev();
-  ret = write(fd, user_buf, strlen(user_buf) + 1);
-  close_chardev(fd);
-
-  if (ret < 0)
-    printf("Could not write a message to %s\n", DEVICE_NODE);
-  else
-    printf("Wrote the message to %s\n", DEVICE_NODE);
+  printf("Enter Name: ");
+  char name[100];
+  fflush(stdin);
+  getchar();
+  scanf(" %[^\n]s", &name);
+  students[count].name = (char *)malloc(100 * sizeof(char));;
+  strcpy(students[count].name, name);
+  students[count].name = normalize_characters(students[count].name);
+  printf("%s\n", toString(students[count]));
+  count++;
 }
-
 
 int main() {
-    int ret = 0;
-    char option = 'q';
-    int fd = -1;
-    printf("Select below options:\n");
-    printf("\to (to open a device node)\n");
-    printf("\tc (to close the device node)\n");
-    printf("\tr (to read data from device node\n)");
-    printf("\tw (to write data to device node\n)");
-    printf("\tq (to quit the application)\n");
-    while (1) {
-        printf("Enter your option: ");
-        scanf(" %c", &option);
+  int option = 0;
+  while(1){
+    printf("1.Login\n");
+    printf("2.Quit\n");
+    printf("Enter your option: ");
+    scanf("%d", &option);
+    switch (option) {
+      case 1:
+        {
+          if(login()){
+            while (1) {
+              printf("Login success\n");
+              printf("1.Add student\n");
+              printf("2.Export to file\n");
+              printf("3.Quit\n");
+              printf("Enter your option: ");
+              scanf("%d", &option);
+              switch(option) {
+                case 1:
+                  addStudent();
+                  break;
+                case 2:
+                  {
+                    FILE* fp;
+                    fp = fopen("students.txt", "w+");
 
-        switch (option) {
-            case 'o':
-                if (fd < 0)
-                    fd = open_chardev();
-                else
-                    printf("%s has already opened\n", DEVICE_NODE);
-                break;
-            case 'c':
-                if (fd > -1)
-                    close_chardev(fd);
-                else
-                    printf("%s has not opened yet! Can not close\n", DEVICE_NODE);
-                fd = -1;
-                break;
-            case 'r':
-                read_data_chardev();
-                break;
-            case 'w':
-                write_data_chardev();
-                break;
-            case 'q':
-                if (fd > -1)
-                    close_chardev(fd);
-                printf("Quit the application. Good bye!\n");
-                return 0;
-            default:
-                printf("invalid option %c\n", option);
-                break;
+                    int i;
+                    // ghi 3 student có điểm cao nhất vào file
+                    for (i = 0; i < count; i++)
+                    {
+                      fprintf(fp, toString(students[i]));
+                    }
+                    fclose(fp);
+                    break;
+                  }
+                case 3:
+                  printf("Goodbye\n");
+                  return 0;
+                default:
+                  printf("Invalid option\n");
+                  break;
+              }
+            }
+
+          } else {
+            printf("Login failed\n");
+          }
+          break;
         }
-    };
+      case 2:
+        printf("Goodbye!");
+        return 0;
+      default:
+        printf("Invalid option!\n");
+        break;
+    }
+  }
 }

@@ -1,5 +1,7 @@
-#include <linux/module.h>   /* Needed by all modules */
-#include <linux/kernel.h>   /* Needed for KERN_INFO */
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct{
 	uint64_t size;        // Size of input in bytes
@@ -13,7 +15,8 @@ void md5Update(MD5Context *ctx, uint8_t *input, size_t input_len);
 void md5Finalize(MD5Context *ctx);
 void md5Step(uint32_t *buffer, uint32_t *input);
 
-static uint8_t* md5String(char *input);
+uint8_t* md5String(char *input);
+uint8_t* md5File(FILE *file);
 
 uint32_t F(uint32_t X, uint32_t Y, uint32_t Z);
 uint32_t G(uint32_t X, uint32_t Y, uint32_t Z);

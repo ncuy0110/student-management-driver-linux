@@ -5,6 +5,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
+#include <linux/string.h>
 
 #include "vchar_device.h"
 
@@ -27,76 +28,6 @@ struct _vchar_drv {
   unsigned int open_cnt;
 } vchar_drv;
 
-int vchar_hw_read_data(vchar_dev_t *hw, int start_reg, int num_regs, char* kbuf) {
-  int read_bytes = num_regs;
-
-  // kiem tra co quyen doc du lieu khong
-  /* if ((hw->control_regs[CONTROL_ACCESS_REG] & CTRL_READ_DATA_BIT) == DISABLE) */
-  /*   return -1; */
-
-  // kiem tra xem dia chi kbuf co hop le khong
-  if (kbuf == NULL)
-    return -1;
-
-  // kiem tra xem vi tri cua cac thanh gi can doc co hop ly khong
-  if (start_reg > NUM_DATA_REGS) 
-    return -1;
-
-  // dieu chinh lai so luong thanh ghi du lieu can doc (neu can thiet)
-  if (num_regs > (NUM_DATA_REGS - start_reg))
-    read_bytes = NUM_DATA_REGS - start_reg;
-
-  memcpy(kbuf, hw->data_regs + start_reg, read_bytes);
-
-  hw->status_regs[READ_COUNT_L_REG] +=1;
-  if (hw->status_regs[READ_COUNT_L_REG] == 0)
-    hw->status_regs[READ_COUNT_L_REG] +=1;
-
-  return read_bytes;
-}
-
-int vchar_hw_write_data(vchar_dev_t *hw, int start_reg, int num_regs, char *kbuf){
-  int write_bytes = num_regs;
-
-  /* if ((hw->control_regs[CONTROL_ACCESS_REG] & CTRL_WRITE_DATA_BIT) == DISABLE) */
-  /*   return -1; */
-
-  if(kbuf == NULL) 
-    return -1;
-
-  printk("%c\n", kbuf[0]);
-  if(start_reg > NUM_DATA_REGS)
-    return -1;
-
-  while (kbuf[0] == ' '){
-    int i = 0;
-    for (i=0; i<write_bytes-1; i++){
-      kbuf[i] = kbuf[i+1];
-    }
-
-    write_bytes-=1;
-    kbuf[write_bytes] = '\0';
-  }
-
-  while (kbuf[write_bytes-1] == ' ') {
-    write_bytes-=1;
-    kbuf[write_bytes] = '\0';
-    printk("%d\n", write_bytes);
-  }
-
-  if(num_regs > (NUM_DATA_REGS - start_reg)){
-    write_bytes = NUM_DATA_REGS - start_reg;
-    hw->status_regs[DEVICE_STATUS_REG] |= STS_DATAREGS_OVERFLOW_BIT;
-  }
-
-
-  memcpy(hw->data_regs + start_reg, kbuf, write_bytes);
-  hw->status_regs[WRITE_COUNT_L_REG] +=1;
-  if(hw->status_regs[WRITE_COUNT_L_REG] == 0)
-    hw->status_regs[WRITE_COUNT_L_REG] += 1;
-
-  return write_bytes;
-}
 
 static int vchar_driver_open(struct inode *inode, struct file *filp) {
   vchar_drv.open_cnt++;
@@ -111,16 +42,56 @@ static int vchar_driver_release(struct inode *inode, struct file *filp) {
 
 static ssize_t vchar_driver_read(struct file *filp, char __user *user_buf, size_t len, loff_t *off) {
   char *kernel_buf = NULL;
-  int num_bytes = 0;
+  int num_bytes = len;
+  int i;
 
-  printk("Handle read event start from %lld, %zu bytes\n", *off, len);
+  printk("Handle normalize event start from %lld, %zu bytes\n", *off, len);
 
   kernel_buf = kzalloc(len, GFP_KERNEL);
+
+  if(copy_from_user(kernel_buf, user_buf, len))
+    return -EFAULT;
+
+  num_bytes -= 1;
+  while (kernel_buf[0] == ' ') {
+    for (i = 0; i<num_bytes-1; i++) {
+      kernel_buf[i] = kernel_buf[i+1];
+    }
+    num_bytes -=1;
+    kernel_buf[num_bytes] = '\0';
+  }
+
+  while (kernel_buf[num_bytes-1] == 32) {
+    num_bytes -= 1;
+    kernel_buf[num_bytes] = '\0';
+  }
+
+  if (kernel_buf[0] > 96 && kernel_buf[0] < 123) {
+    kernel_buf[0] -= 32;
+  }
+
+  i = 1;
+  while (i<num_bytes-2) {
+    if (kernel_buf[i] == ' ' && kernel_buf[i+1] == ' ') {
+      int j;
+      for (j=i; j<num_bytes-1; j++){
+        kernel_buf[j] = kernel_buf[j+1];
+      }
+      num_bytes -= 1;
+      kernel_buf[num_bytes] = '\0';
+    } else {
+      i+=1;
+    } 
+  }
+
+  for (i=1; i<num_bytes-1; i++) {
+    if ((kernel_buf[i] >= 'a' && kernel_buf[i] <='z') && kernel_buf[i-1] == ' ') {
+      kernel_buf[i] -= 32;
+    }
+  }
+
   if(kernel_buf == NULL)
     return 0;
-
-  num_bytes = vchar_hw_read_data(vchar_drv.vchar_hw, *off, len, kernel_buf);
-  printk("read %d bytes from HW\n", num_bytes);
 
   if (num_bytes < 0)
     return -EFAULT;
@@ -132,32 +103,11 @@ static ssize_t vchar_driver_read(struct file *filp, char __user *user_buf, size_
   return num_bytes;
 }
 
-static ssize_t vchar_driver_write(struct file *filp, const char __user *user_buf, size_t len, loff_t *off) {
-  char *kernel_buf = NULL;
-
-  int num_bytes = 0;
-  printk("Handle write event start from %lld, %zu bytes\n", *off, len);
-
-  kernel_buf = kzalloc(len, GFP_KERNEL);
-  if (copy_from_user(kernel_buf, user_buf, len))
-    return -EFAULT;
-
-  num_bytes = vchar_hw_write_data(vchar_drv.vchar_hw, *off, len, kernel_buf);
-  printk("writes %d bytes to HW\n", num_bytes);
-
-  if (num_bytes < 0)
-    return -EFAULT;
-
-  *off += num_bytes;
-  return num_bytes;
-}
-
 static struct file_operations fops = {
   .owner    = THIS_MODULE,
   .open     = vchar_driver_open,
   .release  = vchar_driver_release,
   .read     = vchar_driver_read,
-  .write    = vchar_driver_write,
 };
 
 int vchar_hw_init(vchar_dev_t *hw) {
