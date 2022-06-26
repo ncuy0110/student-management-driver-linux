@@ -40,7 +40,7 @@ static int vchar_driver_release(struct inode *inode, struct file *filp) {
   return 0;
 }
 
-static ssize_t vchar_driver_read(struct file *filp, char __user *user_buf, size_t len, loff_t *off) {
+static ssize_t normalize_character(struct file *filp, char __user *user_buf, size_t len, loff_t *off) {
   char *kernel_buf = NULL;
   int num_bytes = len;
   int i;
@@ -84,7 +84,7 @@ static ssize_t vchar_driver_read(struct file *filp, char __user *user_buf, size_
     } 
   }
 
-  for (i=1; i<num_bytes-1; i++) {
+  for (i=1; i<num_bytes; i++) {
     if ((kernel_buf[i] >= 'a' && kernel_buf[i] <='z') && kernel_buf[i-1] == ' ') {
       kernel_buf[i] -= 32;
     }
@@ -107,7 +107,7 @@ static struct file_operations fops = {
   .owner    = THIS_MODULE,
   .open     = vchar_driver_open,
   .release  = vchar_driver_release,
-  .read     = vchar_driver_read,
+  .read     = normalize_character,
 };
 
 int vchar_hw_init(vchar_dev_t *hw) {
@@ -130,7 +130,6 @@ void vchar_hw_exit(vchar_dev_t *hw) {
 }
 
 static int __init vchar_driver_init(void) {
-
 
   /* cap phat device number */
   int ret = 0;

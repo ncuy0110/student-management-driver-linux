@@ -8,8 +8,9 @@
 
 #include "md5.h"
 
-#define BUFFER_SIZE 1024
 #define DEVICE_NODE "/dev/vchar_dev"
+
+static inline void ignore_ret() {}
 
 int open_chardev() {
   int fd = open(DEVICE_NODE, O_RDWR);
@@ -54,16 +55,16 @@ void print_hash(uint8_t *p){
 bool login(){
   printf("Enter username: ");
   char username[256];
-  scanf(" %[^\n]s", username);
+  ignore_ret(scanf(" %[^\n]s", username));
   char password[256];
   printf("Enter password: ");
-  scanf(" %[^\n]s", password);
+  ignore_ret(scanf(" %[^\n]s", password));
 
   uint8_t * encrypted_pw = md5String(password);
   FILE* fp;
   fp = fopen("admin.txt", "r");
   char buff[256];
-  fgets(buff, 256, fp);
+  ignore_ret(fgets(buff, 256, fp));
 
   char * un = buff;
 
@@ -74,7 +75,7 @@ bool login(){
   }
 
 
-  fgets(buff, 256, fp);
+  ignore_ret(fgets(buff, 256, fp));
   printf("%s\n", buff);
   for (i = 0; i<16; i++) {
     if (encrypted_pw[i] != hex_to_uint8_t(buff[i*2], buff[i*2+1])) {
@@ -103,19 +104,31 @@ int count = 0;
 void addStudent(){
   printf("Enter ID: ");
   int id;
-  scanf("%d", &id);
+  ignore_ret(scanf("%d", &id));
   students[count].id = id;
 
   printf("Enter Name: ");
   char name[100];
   fflush(stdin);
   getchar();
-  scanf(" %[^\n]s", &name);
+  ignore_ret(scanf(" %[^\n]s", name));
   students[count].name = (char *)malloc(100 * sizeof(char));;
   strcpy(students[count].name, name);
   students[count].name = normalize_characters(students[count].name);
   printf("%s\n", toString(students[count]));
   count++;
+}
+
+void writeToFile() {
+  FILE* fp;
+  fp = fopen("students.txt", "w+");
+
+  int i;
+  for (i = 0; i < count; i++)
+  {
+    fprintf(fp, "%s", toString(students[i]));
+  }
+  fclose(fp);
 }
 
 int main() {
@@ -124,7 +137,7 @@ int main() {
     printf("1.Login\n");
     printf("2.Quit\n");
     printf("Enter your option: ");
-    scanf("%d", &option);
+    ignore_ret(scanf("%d", &option));
     switch (option) {
       case 1:
         {
@@ -135,23 +148,14 @@ int main() {
               printf("2.Export to file\n");
               printf("3.Quit\n");
               printf("Enter your option: ");
-              scanf("%d", &option);
+              ignore_ret(scanf("%d", &option));
               switch(option) {
                 case 1:
                   addStudent();
                   break;
                 case 2:
                   {
-                    FILE* fp;
-                    fp = fopen("students.txt", "w+");
-
-                    int i;
-                    // ghi 3 student có điểm cao nhất vào file
-                    for (i = 0; i < count; i++)
-                    {
-                      fprintf(fp, toString(students[i]));
-                    }
-                    fclose(fp);
+                    writeToFile();
                     break;
                   }
                 case 3:

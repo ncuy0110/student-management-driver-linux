@@ -1,11 +1,3 @@
-/*
- * ten file: vchar_driver.h
- * tac gia : nguyenchonuy2001@gmail.com
- * ngay tao: 23/06/2022
- * mo ta   : chua cac dinh nghia mo ta thiet bi gia lap vchar_dev.
- *           vchar_device la mot thiet bi nam tren RAM.
- */
-
 #define REG_SIZE 1 //kich thuoc cua 1 thanh ghi la 1 byte (8 bits)
 #define NUM_CTRL_REGS 1 //so thanh ghi dieu khien cua thiet bi
 #define NUM_STS_REGS 5 //so thanh ghi trang thai cua thiet bi
